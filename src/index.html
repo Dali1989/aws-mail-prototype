@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>営業メール配信｜テスト版</title>
+<style>
+:root{font-family:system-ui,"Yu Gothic",sans-serif;color:#24344a;background:#f3f6fa}*{box-sizing:border-box}body{margin:0}header{background:#153b60;color:white;padding:24px max(24px,calc((100vw - 1000px)/2))}header p{color:#d6e6f5;margin:8px 0 0}h1{font-size:24px;margin:0}main{max-width:1000px;margin:24px auto;padding:0 20px}.notice{background:#fff6da;border-left:4px solid #d99b21;padding:14px 18px;line-height:1.6}.layout{display:grid;grid-template-columns:1.15fr 1fr;gap:20px;margin:20px 0}.card{background:white;border:1px solid #dce3ec;border-radius:12px;padding:24px}h2{font-size:18px;margin:0 0 20px}label{display:block;font-weight:600;font-size:14px;margin:16px 0 7px}input,textarea,select{width:100%;font:inherit;border:1px solid #b8c5d5;border-radius:6px;padding:10px}textarea{min-height:220px;resize:vertical}button{font:inherit;cursor:pointer;border:0;border-radius:6px;padding:11px 18px;background:#1766a8;color:white}button:disabled{opacity:.45;cursor:not-allowed}.secondary{background:#e9eff6;color:#23415e}.actions{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}.muted{font-size:13px;color:#61738b;line-height:1.7}.preview{white-space:pre-wrap;overflow-wrap:anywhere;background:#f7f9fc;border-radius:6px;padding:16px;min-height:240px}#result{white-space:pre-wrap;overflow-wrap:anywhere;padding:16px;border-radius:6px;background:#edf2f8;margin-top:16px}#result.ok{background:#e7f5eb}#result.error{background:#fff0ec}.access{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end}.access label{margin-top:0}.confirm{display:flex;gap:9px;align-items:flex-start;font-weight:400;line-height:1.5}.confirm input{width:auto;margin-top:4px}@media(max-width:760px){.layout{grid-template-columns:1fr}.access{grid-template-columns:1fr}header{padding:24px}}
+</style></head><body>
+<header><h1>営業メール配信</h1><p>Amazon SES 接続テスト版</p></header>
+<main><div class="notice">登録済みのテスト宛先のみ送信できます。CSVは最大5件です。会社の本番配信・予約機能は対象外です。</div>
+<section class="card" style="margin-top:20px"><div class="access"><div><label for="token">デモ用アクセスキー</label><input id="token" type="password" autocomplete="off" placeholder="デプロイ時に表示されたキー"></div><button id="connect">接続する</button></div><p class="muted" id="connection" role="status">未接続。キーはブラウザに保存しません。</p></section>
+<div class="layout"><section class="card"><h2>新規メール作成</h2><form id="mailForm">
+<label for="sender">メール送信元</label><select id="sender" disabled><option>接続後に表示されます</option></select>
+<label for="to">送信先メールアドレス</label><select id="to" disabled><option>接続後に表示されます</option></select>
+<label for="companyName">送信先会社名</label><input id="companyName" maxlength="100" required value="富士山ソフトウエア株式会社">
+<label for="contactName">担当者名（様は不要）</label><input id="contactName" maxlength="100" required value="佐藤">
+<label for="subject">件名</label><input id="subject" maxlength="200" required value="営業メールのテスト">
+<label for="body">本文テンプレート</label><textarea id="body" maxlength="10000" required placeholder="接続後に標準の営業メール本文が表示されます。"></textarea>
+<p class="muted">{{companyName}}：会社名 ／ {{contactName}}：担当者名。「様」はテンプレートに含まれています。</p>
+<div class="actions"><button id="preview" type="submit" disabled>内容を確認</button></div></form></section>
+<section class="card"><h2>送信内容の確認</h2><div id="summary" class="preview">左側で内容を入力し、「内容を確認」を押してください。</div><label class="confirm"><input id="confirm" type="checkbox" disabled>送信先と内容を確認しました。</label><button id="send" disabled>この内容でテスト送信</button><p class="muted">実際に1通送信します。結果が不明な場合は、再送前に受信箱を確認してください。</p><div id="result" role="status" aria-live="polite">送信結果はここに表示されます。</div></section></div>
+<section class="card"><h2>パソコンのCSVから送信</h2><p class="muted" id="csvSource">接続後、UTF-8のCSVを選択してください。原本ファイルはアップロードしません。確認時に宛先データと生成本文をサーバーへ送ります。</p><label for="csvFile">CSVファイルを選択</label><input id="csvFile" type="file" accept=".csv,text/csv" disabled><p class="muted" id="fileSummary" role="status">ファイル未選択</p>
+<div class="actions"><button id="csvPreview" disabled>このCSVと本文をプレビュー</button></div>
+<label for="jobId">ジョブID（保存済み結果の確認にも使用）</label><input id="jobId" autocomplete="off" placeholder="プレビュー後に表示されます">
+<div class="actions"><button id="csvStatus" class="secondary" disabled>結果を確認</button></div>
+<div id="csvRows" style="margin-top:16px"></div>
+<label class="confirm"><input id="csvConfirm" type="checkbox" disabled>全宛先と差し込み後の本文を確認しました。</label>
+<button id="csvSend" disabled>未処理の宛先へ順番に送信</button>
+<p class="muted" id="csvResult" role="status">CSVの読み込みだけでは送信しません。結果不明の行は再送しません。</p></section>
+<p class="muted">SES受付は受信・既読を保証しません。CSVジョブはS3に一時保存されます。再表示にはジョブIDを控えてください。</p></main>
+<script src="/csv-parser.js"></script>
+<script>
+const $=id=>document.getElementById(id);let snapshot=null,busy=false,connected=false;
+function invalidate(){snapshot=null;$('confirm').checked=false;$('confirm').disabled=true;$('send').disabled=true;clearCsvPreview();}
+function status(text,kind=''){const el=$('result');el.className=kind;el.textContent=text;}
+async function api(path,options={}){const r=await fetch(path,{...options,headers:{'Content-Type':'application/json','Authorization':'Bearer '+$('token').value,...options.headers}});const data=await r.json();if(!r.ok)throw new Error(data.message||'接続に失敗しました。');return data;}
+$('connect').onclick=async()=>{invalidate();connected=false;$('preview').disabled=true;$('connect').disabled=true;try{const config=await api('/api/config');$('sender').replaceChildren(new Option('営業部（'+config.sender+'）',config.sender));$('to').replaceChildren(...config.recipients.map(a=>new Option(a,a)));if(!$('body').value)$('body').value=config.bodyTemplate;allowedCsvRecipients=config.recipients;maxCsvRows=config.maxBatchSize;$('sender').disabled=false;$('to').disabled=false;connected=true;$('preview').disabled=false;$('connection').textContent='接続済み。登録済みのテスト宛先に送信できます。';}catch(e){$('connection').textContent=e.message;}finally{$('connect').disabled=false;}};
+for(const id of ['sender','to','companyName','contactName','subject','body'])$(id).addEventListener('input',invalidate);
+$('token').addEventListener('input',()=>{invalidate();connected=false;$('preview').disabled=true;$('connection').textContent='キーを変更しました。再接続してください。';});
+$('mailForm').onsubmit=e=>{e.preventDefault();if(!connected||busy)return;invalidate();const payload={sender:$('sender').value,to:$('to').value,companyName:$('companyName').value.trim(),contactName:$('contactName').value.trim(),subject:$('subject').value.trim(),body:$('body').value};try{for(const value of [payload.companyName,payload.contactName])if(!value||/[\r\n]/.test(value))throw new Error('会社名と担当者名を確認してください。');const rendered=payload.body.replace(/\{\{\s*([A-Za-z][A-Za-z0-9]*)\s*\}\}/g,(_,key)=>{if(!['companyName','contactName'].includes(key))throw new Error('本文に未対応の変数があります。');return payload[key];});if(rendered.length>10000)throw new Error('差し込み後の本文が長すぎます。');snapshot=payload;$('summary').textContent=`送信元：${payload.sender}\n送信先：${payload.to}\n件名：${payload.subject}\n\n${rendered}`;$('confirm').disabled=false;status('内容を確認し、チェックを入れて送信してください。');}catch(e){status(e.message,'error');}};
+$('confirm').onchange=()=>{$('send').disabled=!snapshot||!$('confirm').checked||busy;};
+$('send').onclick=async()=>{if(!snapshot||busy||!$('confirm').checked)return;const payload=snapshot;busy=true;$('send').disabled=true;$('preview').disabled=true;status('送信処理中です。もう一度クリックしないでください。');try{const result=await api('/send',{method:'POST',body:JSON.stringify(payload)});status(result.message+'\nMessage ID: '+result.messageId,'ok');}catch(e){status(e.message+'\n通信エラーの場合も、自動再送は行いません。','error');}finally{busy=false;invalidate();$('preview').disabled=!connected;}};
+let csvJob=null,csvWorking=false,localCsvRows=null,allowedCsvRecipients=[],maxCsvRows=5,fileReadVersion=0;
+function clearCsvPreview(){csvJob=null;$('csvConfirm').checked=false;$('csvConfirm').disabled=true;$('csvSend').disabled=true;$('csvRows').replaceChildren();$('csvResult').textContent='入力を変更した場合はCSVを再プレビューしてください。既存ジョブの状況はIDで確認できます。';}
+function csvButtons(){const ready=connected&&!busy&&!csvWorking;$('csvPreview').disabled=!ready||!localCsvRows;$('csvFile').disabled=!ready;$('csvStatus').disabled=!ready;$('csvConfirm').disabled=!ready||!csvJob;$('csvSend').disabled=!ready||!csvJob||!$('csvConfirm').checked||!csvJob.rows.some(r=>r.state==='pending');}
+function renderCsv(){
+ $('csvRows').replaceChildren();if(!csvJob){csvButtons();return;}
+ $('jobId').value=csvJob.jobId;
+ for(const row of csvJob.rows){const detail=document.createElement('details');detail.style.marginBottom='12px';const title=document.createElement('summary');const names={pending:'未処理',accepted:'SES受付済み',unknown:'処理中・結果不明'};title.textContent=`${row.index+1}. ${row.companyName} / ${row.contactName} / ${row.to} — ${names[row.state]||row.state}`;const text=document.createElement('pre');text.className='preview';text.textContent=`送信元：${csvJob.sender}\n送信先：${row.to}\n件名：${row.subject}\n\n${row.body}\n\n${row.message||''}${row.messageId?'\nMessage ID: '+row.messageId:''}`;detail.append(title,text);$('csvRows').append(detail);}
+ csvButtons();
+}
+async function csvTask(fn){
+ if(busy||csvWorking)return;csvWorking=true;const controls=[...document.querySelectorAll('input,select,textarea,button')];const disabled=controls.map(x=>x.disabled);controls.forEach(x=>x.disabled=true);
+ try{await fn();}catch(e){$('csvResult').textContent=e.message+' 結果確認後に判断してください。自動再送はしません。';}
+ finally{csvWorking=false;controls.forEach((x,i)=>x.disabled=disabled[i]);renderCsv();}
+}
+const originalConnect=$('connect').onclick;
+$('connect').onclick=async()=>{await originalConnect();csvButtons();if(connected)$('csvSource').textContent=`列：companyName,contactName,email。UTF-8、64KB以内、最大${maxCsvRows}件。件名と本文テンプレートは上の入力を使用します。原本CSVは保存せず、確認後の宛先データと本文をS3に一時保存します。`;};
+$('token').addEventListener('input',()=>{fileReadVersion++;localCsvRows=null;$('csvFile').value='';$('fileSummary').textContent='再接続後にファイルを選択してください。';csvButtons();});
+$('csvConfirm').onchange=csvButtons;
+$('jobId').addEventListener('input',()=>{csvJob=null;$('csvConfirm').checked=false;csvButtons();});
+$('csvFile').onchange=async()=>{
+ const version=++fileReadVersion;clearCsvPreview();localCsvRows=null;csvButtons();const file=$('csvFile').files[0];
+ if(!file){$('fileSummary').textContent='ファイル未選択';return;}
+ try{if(file.size>65536)throw new Error('CSVは64KB以内にしてください。');const text=new TextDecoder('utf-8',{fatal:true}).decode(await file.arrayBuffer());if(version!==fileReadVersion)return;localCsvRows=CsvInput.parseCsv(text,allowedCsvRecipients,maxCsvRows);$('fileSummary').textContent=`${file.name}：${localCsvRows.length}件。`+localCsvRows.map(r=>`${r.companyName} / ${r.contactName} / ${r.email}`).join('、');}
+ catch(e){if(version!==fileReadVersion)return;localCsvRows=null;$('fileSummary').textContent='読込エラー：'+e.message+' UTF-8のCSVを確認してください。';}finally{if(version===fileReadVersion)csvButtons();}
+};
+$('csvPreview').onclick=()=>csvTask(async()=>{if(!localCsvRows)throw new Error('CSVファイルを選択してください。');csvJob=null;$('csvConfirm').checked=false;csvJob=await api('/csv/preview',{method:'POST',body:JSON.stringify({rows:localCsvRows,sender:$('sender').value,subject:$('subject').value,body:$('body').value})});$('csvResult').textContent=`${csvJob.rows.length}件を保存しました。各行を開いて本文を確認してください。このジョブは24時間有効です。`;});
+$('csvStatus').onclick=()=>csvTask(async()=>{const id=$('jobId').value.trim();csvJob=null;$('csvConfirm').checked=false;csvJob=await api('/csv/status',{method:'POST',body:JSON.stringify({jobId:id})});$('csvResult').textContent='結果を取得しました。未処理だけ継続できます。処理中・結果不明の行は受信箱とログを確認してください。';});
+$('csvSend').onclick=()=>{if(!csvJob||!$('csvConfirm').checked)return;csvTask(async()=>{const id=csvJob.jobId;const rows=csvJob.rows.filter(r=>r.state==='pending');for(const row of rows){$('csvResult').textContent=`${row.index+1}件目を処理中…`;try{const result=await api('/csv/send',{method:'POST',body:JSON.stringify({jobId:id,index:row.index})});Object.assign(row,result);}catch(e){row.state='unknown';throw e;}await new Promise(resolve=>setTimeout(resolve,1100));}$('csvConfirm').checked=false;$('csvResult').textContent='このジョブの未処理行の送信を終了しました。SES受付と実際の受信は区別してください。';});};
+</script></body></html>

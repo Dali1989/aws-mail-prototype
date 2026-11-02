@@ -1,0 +1,305 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Transform": "AWS::Serverless-2016-10-31",
+  "Description": "SES prototype with browser CSV input and S3 job snapshots.",
+  "Parameters": {
+    "SenderEmail": {
+      "Type": "String"
+    },
+    "AllowedRecipients": {
+      "Type": "CommaDelimitedList"
+    },
+    "AccessToken": {
+      "Type": "String",
+      "NoEcho": true,
+      "MinLength": 24
+    },
+    "MaxBatchSize": {
+      "Type": "Number",
+      "Default": 5,
+      "MinValue": 1,
+      "MaxValue": 5
+    }
+  },
+  "Resources": {
+    "MailApi": {
+      "Type": "AWS::Serverless::HttpApi",
+      "Properties": {
+        "StageName": "$default",
+        "DefaultRouteSettings": {
+          "ThrottlingBurstLimit": 2,
+          "ThrottlingRateLimit": 1
+        }
+      }
+    },
+    "MailFunction": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "FunctionName": {
+          "Fn::Sub": "${AWS::StackName}-send"
+        },
+        "CodeUri": "src/",
+        "Handler": "lambda_function.lambda_handler",
+        "Runtime": "python3.13",
+        "MemorySize": 128,
+        "Timeout": 25,
+        "Environment": {
+          "Variables": {
+            "SENDER_EMAIL": {
+              "Ref": "SenderEmail"
+            },
+            "ALLOWED_RECIPIENTS": {
+              "Fn::Join": [
+                ",",
+                {
+                  "Ref": "AllowedRecipients"
+                }
+              ]
+            },
+            "ACCESS_TOKEN": {
+              "Ref": "AccessToken"
+            },
+            "CSV_BUCKET": {
+              "Ref": "CsvBucket"
+            },
+            "MAX_BATCH_SIZE": {
+              "Ref": "MaxBatchSize"
+            }
+          }
+        },
+        "Policies": [
+          {
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": "ses:SendEmail",
+                "Resource": {
+                  "Fn::Sub": "arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:identity/${SenderEmail}"
+                },
+                "Condition": {
+                  "ForAllValues:StringEquals": {
+                    "ses:Recipients": {
+                      "Ref": "AllowedRecipients"
+                    }
+                  }
+                }
+              },
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "s3:GetObject",
+                  "s3:PutObject"
+                ],
+                "Resource": {
+                  "Fn::Sub": "${CsvBucket.Arn}/jobs/*"
+                }
+              },
+              {
+                "Effect": "Allow",
+                "Action": "s3:ListBucket",
+                "Resource": {
+                  "Fn::GetAtt": [
+                    "CsvBucket",
+                    "Arn"
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "Events": {
+          "Home": {
+            "Type": "HttpApi",
+            "Properties": {
+              "ApiId": {
+                "Ref": "MailApi"
+              },
+              "Path": "/",
+              "Method": "GET",
+              "PayloadFormatVersion": "2.0"
+            }
+          },
+          "Config": {
+            "Type": "HttpApi",
+            "Properties": {
+              "ApiId": {
+                "Ref": "MailApi"
+              },
+              "Path": "/api/config",
+              "Method": "GET",
+              "PayloadFormatVersion": "2.0"
+            }
+          },
+          "Send": {
+            "Type": "HttpApi",
+            "Properties": {
+              "ApiId": {
+                "Ref": "MailApi"
+              },
+              "Path": "/send",
+              "Method": "POST",
+              "PayloadFormatVersion": "2.0"
+            }
+          },
+          "CsvPreview": {
+            "Type": "HttpApi",
+            "Properties": {
+              "ApiId": {
+                "Ref": "MailApi"
+              },
+              "Path": "/csv/preview",
+              "Method": "POST",
+              "PayloadFormatVersion": "2.0"
+            }
+          },
+          "CsvSend": {
+            "Type": "HttpApi",
+            "Properties": {
+              "ApiId": {
+                "Ref": "MailApi"
+              },
+              "Path": "/csv/send",
+              "Method": "POST",
+              "PayloadFormatVersion": "2.0"
+            }
+          },
+          "CsvStatus": {
+            "Type": "HttpApi",
+            "Properties": {
+              "ApiId": {
+                "Ref": "MailApi"
+              },
+              "Path": "/csv/status",
+              "Method": "POST",
+              "PayloadFormatVersion": "2.0"
+            }
+          },
+          "CsvParser": {
+            "Type": "HttpApi",
+            "Properties": {
+              "ApiId": {
+                "Ref": "MailApi"
+              },
+              "Path": "/csv-parser.js",
+              "Method": "GET",
+              "PayloadFormatVersion": "2.0"
+            }
+          }
+        }
+      }
+    },
+    "MailLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "DeletionPolicy": "Delete",
+      "UpdateReplacePolicy": "Delete",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Sub": "/aws/lambda/${AWS::StackName}-send"
+        },
+        "RetentionInDays": 3
+      }
+    },
+    "CsvBucket": {
+      "Type": "AWS::S3::Bucket",
+      "DeletionPolicy": "Delete",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "IgnorePublicAcls": true,
+          "BlockPublicPolicy": true,
+          "RestrictPublicBuckets": true
+        },
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }
+          ]
+        },
+        "OwnershipControls": {
+          "Rules": [
+            {
+              "ObjectOwnership": "BucketOwnerEnforced"
+            }
+          ]
+        },
+        "LifecycleConfiguration": {
+          "Rules": [
+            {
+              "Id": "ExpirePreviewJobs",
+              "Status": "Enabled",
+              "Prefix": "jobs/",
+              "ExpirationInDays": 2
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "aws-mail-prototype"
+          },
+          {
+            "Key": "StackName",
+            "Value": {
+              "Ref": "AWS::StackName"
+            }
+          }
+        ]
+      }
+    },
+    "CsvBucketPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": {
+          "Ref": "CsvBucket"
+        },
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "s3:*",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "CsvBucket",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::Sub": "${CsvBucket.Arn}/*"
+                }
+              ],
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false"
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "PageUrl": {
+      "Value": {
+        "Fn::Sub": "https://${MailApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/"
+      }
+    },
+    "FunctionName": {
+      "Value": {
+        "Ref": "MailFunction"
+      }
+    },
+    "CsvBucketName": {
+      "Value": {
+        "Ref": "CsvBucket"
+      }
+    }
+  }
+}

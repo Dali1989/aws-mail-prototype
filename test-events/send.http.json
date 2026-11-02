@@ -1,0 +1,14 @@
+{
+  "version": "2.0",
+  "rawPath": "/send",
+  "requestContext": {
+    "http": {
+      "method": "POST"
+    }
+  },
+  "headers": {
+    "authorization": "Bearer REPLACE_WITH_CURRENT_DEMO_KEY"
+  },
+  "isBase64Encoded": false,
+  "body": "{\"sender\":\"zhangjimi1@gmail.com\",\"to\":\"zhangjimi1@gmail.com\",\"subject\":\"営業メールテスト\",\"body\":\"{{companyName}}\\n{{contactName}}様\\n\\nお世話になっております。\\nファーストデベロップ株式会社の営業担当者です。\\n\\nこのたび、貴社との新たなお取引の機会をいただきたく、ご連絡いたしました。\\n\\n弊社では、Java、AWS、ServiceNowを中心としたITエンジニアの技術支援を行っております。\\n\\nぜひ一度、情報交換の機会をいただけますと幸いです。\\n\\n何卒よろしくお願いいたします。\\n\\nファーストデベロップ株式会社\\n営業担当\",\"companyName\":\"富士山ソフトウエア株式会社\",\"contactName\":\"佐藤\"}"
+}
